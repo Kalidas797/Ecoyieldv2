@@ -1,12 +1,13 @@
 // ignore_for_file: unused_element
 
+import 'package:cropmate/screens/GlobalReach.dart';
+import 'package:cropmate/screens/livenarketprice.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cropmate/screens/disease_detection_page.dart';
 import 'package:cropmate/screens/plant_identification_page.dart';
 import 'package:cropmate/screens/plants_page.dart';
-import 'package:cropmate/screens/livenarketprice.dart';
 // Add this import
 import 'package:cropmate/screens/watering_page.dart';
 
@@ -193,11 +194,11 @@ class _HomePageState extends State<HomePage> {
                             color: Colors.green.shade50,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Row(
+                          child: Row(
                             children: [
-                              Icon(Icons.eco, color: Colors.green, size: 24),
-                              SizedBox(width: 8),
-                              Text(
+                              const Icon(Icons.eco, color: Colors.green, size: 24),
+                              const SizedBox(width: 8),
+                              const Text(
                                 "Ecoyield",
                                 style: TextStyle(
                                   fontSize: 24,
@@ -213,6 +214,36 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                     Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.chat_bubble_rounded), // The icon to display
+                      onPressed: () {
+                        // Code to execute when the button is pressed
+                        Navigator.of(context).push(
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) =>
+                                const GlobalReach(),
+                            transitionsBuilder: (context, animation,
+                                secondaryAnimation, child) {
+                              var curve = Curves.easeInOut;
+                              var curveTween = CurveTween(curve: curve);
+
+                              var fadeAnimation = Tween<double>(
+                                begin: 0.0,
+                                end: 1.0,
+                              ).animate(animation.drive(curveTween));
+
+                              return FadeTransition(
+                                opacity: fadeAnimation,
+                                child: child,
+                              );
+                            },
+                            transitionDuration:
+                                const Duration(milliseconds: 500),
+                          ),
+                        );
+                        print('Icon button pressed!');
+                      },
+                    )
                   ],
                 ),
               ],
