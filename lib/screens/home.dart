@@ -215,7 +215,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.chat_bubble_rounded), // The icon to display
+                      icon: const Icon(Icons.monochrome_photos), // The icon to display
                       onPressed: () {
                         // Code to execute when the button is pressed
                         Navigator.of(context).push(
