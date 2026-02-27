@@ -1,5 +1,6 @@
 // ignore_for_file: unused_element
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:geolocator/geolocator.dart';
@@ -7,11 +8,22 @@ import 'package:geocoding/geocoding.dart';
 import 'package:intl/intl.dart';
 
 class WeatherService {
-  final String apiKey = 'fefe12b4e0691b2f1e016fefab902e5b';
   final String baseUrl = 'https://api.openweathermap.org/data/2.5/weather';
+
+  String get apiKey {
+    try {
+      return dotenv.env['Weather'] ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
 
   Future<Map<String, dynamic>> getCurrentWeather() async {
     try {
+      if (apiKey.isEmpty) {
+        throw Exception('Weather API key is missing. Add Weather to .env');
+      }
+
       // Get current location
       Position position = await _determinePosition();
 

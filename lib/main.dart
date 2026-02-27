@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cropmate/screens/splash_screen.dart';
 import 'package:cropmate/screens/home.dart';
 import 'package:cropmate/screens/plant_identification_page.dart';
@@ -8,6 +9,12 @@ import 'package:cropmate/screens/plants_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('Warning: .env not loaded: $e');
+  }
 
   try {
     // Set preferred orientations
