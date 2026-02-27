@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' as parser;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart'; // Import this
 
 class LivePrice extends StatefulWidget {
   const LivePrice({Key? key}) : super(key: key);
@@ -11,94 +12,58 @@ class LivePrice extends StatefulWidget {
 
 class _LivePriceState extends State<LivePrice> {
   bool _isLoading = true;
-  List<Map<String, String>> _marketData = [];
+  List<dynamic> _marketData = [];
   String _errorMessage = '';
+
+  final String apiUrl =
+      "https://ecoyieldbackend-production.up.railway.app/api/prices";
+  final String cacheKey = "cached_market_prices"; // Key for local storage
 
   @override
   void initState() {
     super.initState();
-    _fetchMarketData();
+    _fetchMarketData(); // Will try cache first
   }
 
-  Future<void> _fetchMarketData() async {
+  // Added a forceRefresh parameter. 
+  // false = check cache first. true = skip cache and hit API.
+  Future<void> _fetchMarketData({bool forceRefresh = false}) async {
     try {
-      final response = await http.get(
-          Uri.parse('https://enam.gov.in/web/dashboard/trade-data'),
-          headers: {'User-Agent': 'Mozilla/5.0'});
-      if (response.statusCode == 200) {
-        final document = parser.parse(response.body);
-        final rows = document.querySelectorAll('table tbody tr');
+      final prefs = await SharedPreferences.getInstance();
 
-        List<Map<String, String>> parsedData = [];
-        for (var row in rows) {
-          final cells = row.querySelectorAll('td');
-          // expected fields: symbol name (commodity), Min Price, Modal Price, Max Price, Unit, Date
-          if (cells.length >= 6) {
-            parsedData.add({
-              'symbol': cells[0].text.trim(),
-              'minPrice': cells[1].text.trim(),
-              'modalPrice': cells[2].text.trim(),
-              'maxPrice': cells[3].text.trim(),
-              'unit': cells[4].text.trim(),
-              'date': cells[5].text.trim()
+      // 1. Check Cache (if we aren't forcing a refresh)
+      if (!forceRefresh) {
+        final cachedString = prefs.getString(cacheKey);
+        if (cachedString != null) {
+          final decoded = jsonDecode(cachedString);
+          if (mounted) {
+            setState(() {
+              _marketData = decoded["data"];
+              _isLoading = false;
             });
           }
+          return; // Exit early so we don't hit the API
         }
+      }
 
-        // If the table was empty or not rendered statically, provide some dummy data as requested functionality.
-        if (parsedData.isEmpty) {
-          parsedData = [
-            {
-              'symbol': 'Wheat',
-              'minPrice': '2000',
-              'modalPrice': '2100',
-              'maxPrice': '2200',
-              'unit': 'Quintal',
-              'date': 'Today'
-            },
-            {
-              'symbol': 'Rice',
-              'minPrice': '3000',
-              'modalPrice': '3200',
-              'maxPrice': '3500',
-              'unit': 'Quintal',
-              'date': 'Today'
-            },
-            {
-              'symbol': 'Onion',
-              'minPrice': '1500',
-              'modalPrice': '1800',
-              'maxPrice': '2000',
-              'unit': 'Quintal',
-              'date': 'Today'
-            },
-            {
-              'symbol': 'Tomato',
-              'minPrice': '800',
-              'modalPrice': '1200',
-              'maxPrice': '1400',
-              'unit': 'Quintal',
-              'date': 'Today'
-            },
-            {
-              'symbol': 'Potato',
-              'minPrice': '900',
-              'modalPrice': '1000',
-              'maxPrice': '1100',
-              'unit': 'Quintal',
-              'date': 'Today'
-            },
-          ];
-        }
+      // 2. If no cache or forceRefresh is true, fetch from API
+      final response = await http.get(Uri.parse(apiUrl));
+
+      if (response.statusCode == 200) {
+        // Save the raw JSON string to cache for next time
+        await prefs.setString(cacheKey, response.body);
+
+        final decoded = jsonDecode(response.body);
 
         if (mounted) {
           setState(() {
-            _marketData = parsedData;
+            _marketData = decoded["data"];
             _isLoading = false;
+            _errorMessage = ''; // Clear any previous errors
           });
         }
       } else {
-        throw Exception('Failed to load data');
+        throw Exception("Failed to load data");
       }
     } catch (e) {
       if (mounted) {
@@ -121,13 +86,16 @@ class _LivePriceState extends State<LivePrice> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
-              ? Center(child: Text('Error: \$_errorMessage'))
-              : Padding(
-                  padding: const EdgeInsets.all(8.0),
+              ? Center(child: Text('Error: $_errorMessage'))
+              : RefreshIndicator(
+                  // Trigger a forced API call when the user pulls to refresh
+                  onRefresh: () => _fetchMarketData(forceRefresh: true),
                   child: ListView.builder(
+                    padding: const EdgeInsets.all(8),
                     itemCount: _marketData.length,
                     itemBuilder: (context, index) {
                       final item = _marketData[index];
+
                       return Card(
                         elevation: 3,
                         margin: const EdgeInsets.symmetric(vertical: 8),
@@ -136,25 +104,13 @@ class _LivePriceState extends State<LivePrice> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    item['symbol'] ?? '',
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green,
-                                    ),
-                                  ),
-                                  Text(
-                                    item['date'] ?? '',
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                item["commodity"] ?? "",
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
                               ),
                               const Divider(),
                               Row(
@@ -162,20 +118,13 @@ class _LivePriceState extends State<LivePrice> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   _buildPriceColumn(
-                                      'Min Price', item['minPrice']),
+                                      "Min", item["min_price"]),
                                   _buildPriceColumn(
-                                      'Modal Price', item['modalPrice']),
+                                      "Modal", item["modal_price"]),
                                   _buildPriceColumn(
-                                      'Max Price', item['maxPrice']),
+                                      "Max", item["max_price"]),
                                 ],
                               ),
-                              const SizedBox(height: 8),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Text("Unit: \${item['unit']}",
-                                    style: const TextStyle(
-                                        fontStyle: FontStyle.italic)),
-                              )
                             ],
                           ),
                         ),
@@ -195,7 +144,7 @@ class _LivePriceState extends State<LivePrice> {
         ),
         const SizedBox(height: 4),
         Text(
-          "₹ \${price ?? ''}",
+          "₹ ${price ?? ''}",
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
