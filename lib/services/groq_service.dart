@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GroqService {
-  final String _apiKey =
-      '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';
+  final String _apiKey = dotenv.env['Groq'] ?? '';
   final String _baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
   Future<String?> sendMessage(String message) async {
