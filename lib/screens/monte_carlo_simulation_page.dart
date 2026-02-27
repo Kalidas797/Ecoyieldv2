@@ -29,7 +29,8 @@ extension ResponsiveContext on BuildContext {
   double get screenHeight => MediaQuery.of(this).size.height;
 
   /// Scales a value based on screen width relative to a 390px baseline.
-  double sp(double size) => size * (screenWidth / 390).clamp(0.75, 1.4);
+  /// Tighter clamp for very small screens to prevent overflow.
+  double sp(double size) => size * (screenWidth / 390).clamp(0.65, 1.4);
 
   /// Returns value based on breakpoints: [sm, md, lg] thresholds.
   T responsive<T>({required T sm, T? md, T? lg}) {
@@ -43,10 +44,10 @@ extension ResponsiveContext on BuildContext {
   bool get isLarge => screenWidth >= kBreakpointLg;
 
   /// Horizontal page padding, responsive
-  double get hPad => responsive<double>(sm: 12, md: 20, lg: 32);
+  double get hPad => responsive<double>(sm: 10, md: 20, lg: 32);
 
   /// Card inner padding, responsive
-  double get cardPad => responsive<double>(sm: 12, md: 16, lg: 20);
+  double get cardPad => responsive<double>(sm: 10, md: 16, lg: 20);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -461,7 +462,6 @@ class _PageState extends State<MonteCarloSimulationPage>
       body: SafeArea(
         child: LayoutBuilder(
           builder: (ctx, constraints) {
-            // On large screens, constrain content width to max 700px centered
             final maxW = constraints.maxWidth >= kBreakpointLg ? 700.0 : double.infinity;
             return Center(
               child: ConstrainedBox(
@@ -513,19 +513,28 @@ class _PageState extends State<MonteCarloSimulationPage>
         icon: Icon(Icons.arrow_back, color: Colors.white, size: context.sp(22)),
         onPressed: () { HapticFeedback.lightImpact(); Navigator.pop(context); },
       ),
+      // FIX: Wrap title in Flexible to prevent horizontal overflow in AppBar
       title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('My Harvest Forecast',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: _fs(context, 17),
-              fontFamily: 'Georgia',
-            )),
-        Text('What will I get this season?',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
-              fontSize: _fs(context, 10.5),
-            )),
+        Text(
+          'My Harvest Forecast',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: _fs(context, 17),
+            fontFamily: 'Georgia',
+          ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+        Text(
+          'What will I get this season?',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: _fs(context, 10.5),
+          ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
       ]),
     );
   }
@@ -533,7 +542,6 @@ class _PageState extends State<MonteCarloSimulationPage>
   // ── Config card ─────────────────────────────────────────────────────────
 
   Widget _configCard(BuildContext ctx) {
-    final pad  = ctx.cardPad;
     final isLg = ctx.isMedium;
 
     return _card(ctx, child: Column(
@@ -542,8 +550,11 @@ class _PageState extends State<MonteCarloSimulationPage>
         Row(children: [
           Icon(Icons.agriculture_rounded, color: kBrown, size: ctx.sp(20)),
           SizedBox(width: ctx.sp(6)),
-          Text('Tell us about your farm',
-              style: _label(_fs(ctx, 15), color: kBrown, w: FontWeight.bold)),
+          Expanded(
+            child: Text('Tell us about your farm',
+                style: _label(_fs(ctx, 15), color: kBrown, w: FontWeight.bold),
+                overflow: TextOverflow.ellipsis),
+          ),
         ]),
         SizedBox(height: ctx.sp(14)),
 
@@ -561,7 +572,7 @@ class _PageState extends State<MonteCarloSimulationPage>
             style: _label(_fs(ctx, 13), color: Colors.brown.shade700)),
         SizedBox(height: ctx.sp(8)),
 
-        // Crop chips — wrap naturally, chips smaller on tiny screens
+        // Crop chips — wrap naturally
         Wrap(
           spacing: ctx.sp(6),
           runSpacing: ctx.sp(6),
@@ -593,7 +604,6 @@ class _PageState extends State<MonteCarloSimulationPage>
 
         SizedBox(height: ctx.sp(14)),
 
-        // Acres slider row — responsive label + pill layout
         _sliderSection(
           ctx: ctx,
           label: '🏡 How many acres do you farm?',
@@ -607,7 +617,6 @@ class _PageState extends State<MonteCarloSimulationPage>
 
         SizedBox(height: ctx.sp(4)),
 
-        // Years slider row
         _sliderSection(
           ctx: ctx,
           label: '📅 Years of weather history:',
@@ -622,7 +631,7 @@ class _PageState extends State<MonteCarloSimulationPage>
     ));
   }
 
-  /// Responsive slider section: label + pill stack vertically on small screens.
+  /// Responsive slider section — always stacks vertically to prevent overflow.
   Widget _sliderSection({
     required BuildContext ctx,
     required String label,
@@ -633,15 +642,21 @@ class _PageState extends State<MonteCarloSimulationPage>
     required double max, required int divisions,
     required ValueChanged<double> onChanged,
   }) {
+    // FIX: Always use Column layout to prevent label+pill Row overflow.
+    // On medium+ screens we use a Row but guard with Flexible.
     final header = ctx.isSmall
         ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(label, style: _label(_fs(ctx, 12), color: Colors.brown.shade700)),
+            Text(label, style: _label(_fs(ctx, 12), color: Colors.brown.shade700),
+                overflow: TextOverflow.ellipsis, maxLines: 2),
             SizedBox(height: ctx.sp(4)),
             _pill(ctx, pill, pillFg, pillBg),
           ])
         : Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Flexible(child: Text(label,
-                style: _label(_fs(ctx, 13), color: Colors.brown.shade700))),
+            Flexible(
+              child: Text(label,
+                  style: _label(_fs(ctx, 13), color: Colors.brown.shade700),
+                  overflow: TextOverflow.ellipsis, maxLines: 2),
+            ),
             SizedBox(width: ctx.sp(8)),
             _pill(ctx, pill, pillFg, pillBg),
           ]);
@@ -675,21 +690,23 @@ class _PageState extends State<MonteCarloSimulationPage>
         backgroundColor: kOlive, foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(ctx.sp(14))),
         elevation: 3,
-        padding: EdgeInsets.symmetric(horizontal: ctx.sp(16)),
+        padding: EdgeInsets.symmetric(horizontal: ctx.sp(12)),
       ),
       icon: busy
-          ? SizedBox(width: ctx.sp(20), height: ctx.sp(20),
+          ? SizedBox(width: ctx.sp(18), height: ctx.sp(18),
               child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-          : Icon(Icons.search_rounded, size: ctx.sp(22)),
-      label: Text(
-        busy ? 'Working out your forecast…' : '🔍  Show Me My Harvest Forecast',
-        style: TextStyle(
-          fontSize: _fs(ctx, 14.5),
-          fontWeight: FontWeight.w700,
-          fontFamily: 'Georgia',
+          : Icon(Icons.search_rounded, size: ctx.sp(20)),
+      label: Flexible(
+        child: Text(
+          busy ? 'Working out your forecast…' : '🔍  Show Me My Harvest Forecast',
+          style: TextStyle(
+            fontSize: _fs(ctx, 13.5),
+            fontWeight: FontWeight.w700,
+            fontFamily: 'Georgia',
+          ),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
         ),
-        overflow: TextOverflow.ellipsis,
-        maxLines: 1,
       ),
       onPressed: busy ? null : _run,
     ),
@@ -710,9 +727,13 @@ class _PageState extends State<MonteCarloSimulationPage>
               valueColor: AlwaysStoppedAnimation(kBrown), strokeWidth: 3)),
       SizedBox(width: ctx.sp(14)),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: _label(_fs(ctx, 13.5), color: kBrown, w: FontWeight.bold)),
+        Text(title,
+            style: _label(_fs(ctx, 13.5), color: kBrown, w: FontWeight.bold),
+            overflow: TextOverflow.ellipsis, maxLines: 2),
         SizedBox(height: ctx.sp(3)),
-        Text(sub, style: TextStyle(fontSize: _fs(ctx, 11.5), color: Colors.grey.shade600)),
+        Text(sub,
+            style: TextStyle(fontSize: _fs(ctx, 11.5), color: Colors.grey.shade600),
+            overflow: TextOverflow.ellipsis, maxLines: 2),
       ])),
     ]),
   );
@@ -730,9 +751,11 @@ class _PageState extends State<MonteCarloSimulationPage>
       SizedBox(width: ctx.sp(10)),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Could not load weather data',
-            style: _label(_fs(ctx, 13.5), color: Colors.red.shade700, w: FontWeight.bold)),
+            style: _label(_fs(ctx, 13.5), color: Colors.red.shade700, w: FontWeight.bold),
+            overflow: TextOverflow.ellipsis, maxLines: 2),
         SizedBox(height: ctx.sp(4)),
-        Text(_error ?? '', style: TextStyle(fontSize: _fs(ctx, 11.5), color: Colors.red.shade700)),
+        Text(_error ?? '',
+            style: TextStyle(fontSize: _fs(ctx, 11.5), color: Colors.red.shade700)),
         SizedBox(height: ctx.sp(6)),
         Text('Please check your internet connection and try again.',
             style: TextStyle(fontSize: _fs(ctx, 11), color: Colors.grey.shade600)),
@@ -753,17 +776,21 @@ class _PageState extends State<MonteCarloSimulationPage>
         ),
         borderRadius: BorderRadius.circular(ctx.sp(14)),
       ),
-      child: Row(children: [
+      // FIX: Use crossAxisAlignment.start and constrain the right column
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
         Icon(Icons.cloud_done_outlined, color: Colors.white, size: ctx.sp(22)),
         SizedBox(width: ctx.sp(10)),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Real weather data loaded ✓',
               style: TextStyle(color: Colors.white,
-                  fontWeight: FontWeight.bold, fontSize: _fs(ctx, 13))),
-          Text('${w.dailyRainfall.length} days of history · ${_loc.display}',
-              style: TextStyle(color: Colors.white70, fontSize: _fs(ctx, 10.5))),
+                  fontWeight: FontWeight.bold, fontSize: _fs(ctx, 13)),
+              overflow: TextOverflow.ellipsis, maxLines: 1),
+          Text('${w.dailyRainfall.length} days · ${_loc.display}',
+              style: TextStyle(color: Colors.white70, fontSize: _fs(ctx, 10.5)),
+              overflow: TextOverflow.ellipsis, maxLines: 1),
         ])),
         SizedBox(width: ctx.sp(8)),
+        // FIX: Constrain right column so it doesn't push others off-screen
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text('${w.meanRainfall.toStringAsFixed(0)} mm/yr',
               style: TextStyle(color: Colors.white,
@@ -785,9 +812,6 @@ class _PageState extends State<MonteCarloSimulationPage>
     final col = pct >= 65 ? kOlive : pct >= 40 ? kAmber : kRed;
     final totalFarmKg = meanKg * _acres;
 
-    // Responsive yield number size
-    final yieldNumSz = ctx.responsive<double>(sm: 32, md: 42, lg: 48);
-
     return Container(
       padding: EdgeInsets.all(ctx.cardPad),
       decoration: BoxDecoration(
@@ -798,7 +822,8 @@ class _PageState extends State<MonteCarloSimulationPage>
             blurRadius: 14, offset: const Offset(0, 5))],
       ),
       child: Column(children: [
-        Row(children: [
+        // FIX: Wrap entire header row with overflow protection
+        Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
           Container(
             padding: EdgeInsets.all(ctx.sp(8)),
             decoration: BoxDecoration(
@@ -810,34 +835,50 @@ class _PageState extends State<MonteCarloSimulationPage>
           SizedBox(width: ctx.sp(12)),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Expected ${cp.name} Harvest',
-                style: _label(_fs(ctx, 12.5), color: Colors.grey.shade600, w: FontWeight.w500)),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(meanKg.toStringAsFixed(0),
-                    style: TextStyle(
-                      fontSize: ctx.sp(yieldNumSz),
-                      fontWeight: FontWeight.w900,
-                      color: col, fontFamily: 'Georgia',
-                    )),
-                Padding(
-                  padding: EdgeInsets.only(bottom: ctx.sp(6), left: ctx.sp(4)),
-                  child: Text('kg/acre',
-                      style: _label(_fs(ctx, 13), color: Colors.grey.shade500, w: FontWeight.w500)),
-                ),
-              ]),
-            ),
+                style: _label(_fs(ctx, 12.5), color: Colors.grey.shade600, w: FontWeight.w500),
+                overflow: TextOverflow.ellipsis, maxLines: 1),
+            SizedBox(height: ctx.sp(2)),
+            // FIX: Use LayoutBuilder + FittedBox so the number never overflows
+            LayoutBuilder(builder: (_, bc) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        meanKg.toStringAsFixed(0),
+                        style: TextStyle(
+                          // Use a responsive base size; FittedBox will scale down further if needed
+                          fontSize: ctx.responsive<double>(sm: 28, md: 38, lg: 44),
+                          fontWeight: FontWeight.w900,
+                          color: col,
+                          fontFamily: 'Georgia',
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(bottom: ctx.sp(4), left: ctx.sp(4)),
+                    child: Text('kg/acre',
+                        style: _label(_fs(ctx, 12), color: Colors.grey.shade500, w: FontWeight.w500)),
+                  ),
+                ],
+              );
+            }),
           ])),
         ]),
 
         SizedBox(height: ctx.sp(16)),
 
+        // Progress bar section
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Flexible(child: Text('How well is your land doing?',
-                style: TextStyle(fontSize: _fs(ctx, 11.5), color: Colors.grey.shade600))),
-            SizedBox(width: 6),
+                style: TextStyle(fontSize: _fs(ctx, 11.5), color: Colors.grey.shade600),
+                overflow: TextOverflow.ellipsis)),
+            SizedBox(width: ctx.sp(6)),
             _pill(ctx, '${pct.toStringAsFixed(0)}% of best', col, col.withOpacity(0.1)),
           ]),
           SizedBox(height: ctx.sp(8)),
@@ -852,8 +893,12 @@ class _PageState extends State<MonteCarloSimulationPage>
           SizedBox(height: ctx.sp(4)),
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('0', style: TextStyle(fontSize: _fs(ctx, 9.5), color: Colors.grey.shade400)),
-            Text('Best: ${cp.peakYieldKgAcre.toStringAsFixed(0)} kg/acre',
-                style: TextStyle(fontSize: _fs(ctx, 9.5), color: Colors.grey.shade400)),
+            Flexible(
+              child: Text('Best: ${cp.peakYieldKgAcre.toStringAsFixed(0)} kg/acre',
+                  style: TextStyle(fontSize: _fs(ctx, 9.5), color: Colors.grey.shade400),
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end),
+            ),
           ]),
         ]),
 
@@ -875,17 +920,21 @@ class _PageState extends State<MonteCarloSimulationPage>
             SizedBox(width: ctx.sp(10)),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Your ${_acres.toStringAsFixed(1)}-acre farm total',
-                  style: _label(_fs(ctx, 12), color: kBrown, w: FontWeight.w500)),
-              Row(children: [
+                  style: _label(_fs(ctx, 12), color: kBrown, w: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis, maxLines: 1),
+              Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Flexible(child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
                   child: Text(totalFarmKg.toStringAsFixed(0),
-                      style: _label(ctx.sp(22), color: kBrown, w: FontWeight.bold)),
+                      style: _label(ctx.sp(20), color: kBrown, w: FontWeight.bold)),
                 )),
                 SizedBox(width: ctx.sp(5)),
-                Text('kg total',
-                    style: _label(_fs(ctx, 12), color: Colors.brown.shade400, w: FontWeight.w500)),
+                Padding(
+                  padding: EdgeInsets.only(bottom: ctx.sp(2)),
+                  child: Text('kg total',
+                      style: _label(_fs(ctx, 11), color: Colors.brown.shade400, w: FontWeight.w500)),
+                ),
               ]),
             ])),
           ]),
@@ -893,7 +942,7 @@ class _PageState extends State<MonteCarloSimulationPage>
 
         SizedBox(height: ctx.sp(14)),
 
-        // Good / bad season — wrap on very small screens
+        // Good / bad season — always stacks vertically on small screens
         ctx.isSmall
             ? Column(children: [
                 _seasonBox(ctx, icon: '☀️', label: 'Good Season',
@@ -924,8 +973,13 @@ class _PageState extends State<MonteCarloSimulationPage>
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(icon, style: TextStyle(fontSize: ctx.sp(20))),
       SizedBox(height: ctx.sp(6)),
-      Text(kg.toStringAsFixed(0),
-          style: _label(_fs(ctx, 18), color: color, w: FontWeight.bold)),
+      // FIX: FittedBox prevents kg number from overflowing the season box
+      FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Text(kg.toStringAsFixed(0),
+            style: _label(_fs(ctx, 18), color: color, w: FontWeight.bold)),
+      ),
       Text('kg/acre', style: _label(_fs(ctx, 10), color: color.withOpacity(0.7), w: FontWeight.w500)),
       SizedBox(height: ctx.sp(2)),
       Text(label, style: _label(_fs(ctx, 12), color: Colors.grey.shade700)),
@@ -944,7 +998,6 @@ class _PageState extends State<MonteCarloSimulationPage>
     final totalKg    = meanKg * _acres;
     final totalBags  = (totalKg / bagSz).floor();
 
-    // On very small screens use a 2-column grid, otherwise 2+2
     final tiles = [
       _factTile(ctx, '${bags.toString()} bags',
           'Per acre (${cp.bagSizeKg} kg bags)', '🎒', kOlive),
@@ -967,14 +1020,15 @@ class _PageState extends State<MonteCarloSimulationPage>
         Text('What does your harvest actually look like?',
             style: TextStyle(fontSize: _fs(ctx, 11), color: Colors.grey.shade500)),
         SizedBox(height: ctx.sp(14)),
-        // Always 2-column grid
+        // FIX: Use a more conservative aspectRatio and clamp to avoid tile overflow
         GridView.count(
           crossAxisCount: 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: ctx.sp(10),
-          mainAxisSpacing: ctx.sp(10),
-          childAspectRatio: ctx.responsive<double>(sm: 1.55, md: 1.7, lg: 1.9),
+          crossAxisSpacing: ctx.sp(8),
+          mainAxisSpacing: ctx.sp(8),
+          // FIX: Smaller aspect ratio so tiles have more height on tiny screens
+          childAspectRatio: ctx.responsive<double>(sm: 1.35, md: 1.6, lg: 1.8),
           children: tiles,
         ),
       ],
@@ -997,22 +1051,27 @@ class _PageState extends State<MonteCarloSimulationPage>
 
   Widget _factTile(BuildContext ctx, String value, String label, String icon, Color color) =>
     Container(
-      padding: EdgeInsets.all(ctx.sp(11)),
+      padding: EdgeInsets.all(ctx.sp(10)),
       decoration: BoxDecoration(
         color: color.withOpacity(0.07),
         borderRadius: BorderRadius.circular(ctx.sp(12)),
         border: Border.all(color: color.withOpacity(0.2)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(icon, style: TextStyle(fontSize: ctx.sp(20))),
-        SizedBox(height: ctx.sp(5)),
-        FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
-          child: Text(value, style: _label(_fs(ctx, 17), color: color, w: FontWeight.bold)),
+        Text(icon, style: TextStyle(fontSize: ctx.sp(18))),
+        SizedBox(height: ctx.sp(4)),
+        // FIX: FittedBox ensures value text never overflows tile width
+        Flexible(
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value,
+                style: _label(_fs(ctx, 16), color: color, w: FontWeight.bold)),
+          ),
         ),
         SizedBox(height: ctx.sp(2)),
-        Text(label, style: TextStyle(fontSize: _fs(ctx, 10), color: Colors.grey.shade600),
+        Text(label,
+            style: TextStyle(fontSize: _fs(ctx, 10), color: Colors.grey.shade600),
             overflow: TextOverflow.ellipsis, maxLines: 2),
       ]),
     );
@@ -1030,10 +1089,12 @@ class _PageState extends State<MonteCarloSimulationPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('🎲 If we ran through 100 growing seasons…',
-            style: _label(_fs(ctx, 14.5), color: kBrown, w: FontWeight.bold)),
+            style: _label(_fs(ctx, 14), color: kBrown, w: FontWeight.bold),
+            overflow: TextOverflow.ellipsis, maxLines: 2),
         SizedBox(height: ctx.sp(4)),
         Text('Based on $_yrs years of real weather in ${_loc.name}',
-            style: TextStyle(fontSize: _fs(ctx, 11), color: Colors.grey.shade500)),
+            style: TextStyle(fontSize: _fs(ctx, 11), color: Colors.grey.shade500),
+            overflow: TextOverflow.ellipsis, maxLines: 1),
         SizedBox(height: ctx.sp(16)),
 
         _scenarioRow(ctx, '☀️', 'Great harvest',
@@ -1062,8 +1123,9 @@ class _PageState extends State<MonteCarloSimulationPage>
             Expanded(child: Text(
               'Typical ${_crop.name} harvest: '
               '${toKgAcre(r.p25).toStringAsFixed(0)} – ${toKgAcre(r.p75).toStringAsFixed(0)} kg/acre',
-              style: TextStyle(fontSize: _fs(ctx, 12.5),
+              style: TextStyle(fontSize: _fs(ctx, 12),
                   fontWeight: FontWeight.w600, color: _crop.color),
+              overflow: TextOverflow.ellipsis, maxLines: 2,
             )),
           ]),
         ),
@@ -1074,19 +1136,24 @@ class _PageState extends State<MonteCarloSimulationPage>
   Widget _scenarioRow(BuildContext ctx, String emoji, String label,
       String desc, int pct, Color color) => Row(children: [
     Text(emoji, style: TextStyle(fontSize: ctx.sp(20))),
-    SizedBox(width: ctx.sp(10)),
+    SizedBox(width: ctx.sp(8)),
     Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      // FIX: Wrap label row so the badge never gets pushed off-screen
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
         Flexible(child: Text(label,
-            style: _label(_fs(ctx, 12.5), color: Colors.grey.shade800))),
-        SizedBox(width: ctx.sp(6)),
+            style: _label(_fs(ctx, 12), color: Colors.grey.shade800),
+            overflow: TextOverflow.ellipsis, maxLines: 1)),
+        SizedBox(width: ctx.sp(4)),
         Container(
-          padding: EdgeInsets.symmetric(horizontal: ctx.sp(8), vertical: ctx.sp(2)),
+          padding: EdgeInsets.symmetric(
+              horizontal: ctx.sp(7), vertical: ctx.sp(2)),
           decoration: BoxDecoration(color: color.withOpacity(0.12),
               borderRadius: BorderRadius.circular(20)),
           child: Text('$pct / 100',
               style: TextStyle(fontWeight: FontWeight.bold,
-                  fontSize: _fs(ctx, 11.5), color: color)),
+                  fontSize: _fs(ctx, 11), color: color)),
         ),
       ]),
       SizedBox(height: ctx.sp(5)),
@@ -1099,7 +1166,9 @@ class _PageState extends State<MonteCarloSimulationPage>
         ),
       ),
       SizedBox(height: ctx.sp(3)),
-      Text(desc, style: TextStyle(fontSize: _fs(ctx, 10), color: Colors.grey.shade500)),
+      Text(desc,
+          style: TextStyle(fontSize: _fs(ctx, 10), color: Colors.grey.shade500),
+          overflow: TextOverflow.ellipsis, maxLines: 1),
     ])),
   ]);
 
@@ -1110,13 +1179,14 @@ class _PageState extends State<MonteCarloSimulationPage>
     final maxF = r.histogram.map((b) => b.freq).reduce(max);
     final meanKg = toKgAcre(r.mean);
     final meanBinIdx = r.histogram.indexWhere((b) => meanKg >= b.lo && meanKg < b.hi);
-    final chartH = ctx.responsive<double>(sm: 120, md: 150, lg: 170);
+    final chartH = ctx.responsive<double>(sm: 110, md: 150, lg: 170);
 
     return _card(ctx, child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('📊 What Range of Harvests Should You Expect?',
-            style: _label(_fs(ctx, 14.5), color: kBrown, w: FontWeight.bold)),
+            style: _label(_fs(ctx, 14), color: kBrown, w: FontWeight.bold),
+            overflow: TextOverflow.ellipsis, maxLines: 2),
         SizedBox(height: ctx.sp(4)),
         Text('Each bar shows how common that harvest level is across 500 simulated seasons',
             style: TextStyle(fontSize: _fs(ctx, 11), color: Colors.grey.shade500)),
@@ -1135,7 +1205,8 @@ class _PageState extends State<MonteCarloSimulationPage>
                 child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
                   if (isMn) Column(children: [
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: ctx.sp(4), vertical: ctx.sp(2)),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: ctx.sp(4), vertical: ctx.sp(2)),
                       decoration: BoxDecoration(color: kAmber,
                           borderRadius: BorderRadius.circular(ctx.sp(4))),
                       child: Text('avg',
@@ -1152,7 +1223,8 @@ class _PageState extends State<MonteCarloSimulationPage>
                       color: isMn
                           ? kAmber
                           : _crop.color.withOpacity(0.5 + 0.5 * hf),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(ctx.sp(4))),
+                      borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(ctx.sp(4))),
                     ),
                   ),
                 ]),
@@ -1162,11 +1234,14 @@ class _PageState extends State<MonteCarloSimulationPage>
         ),
 
         SizedBox(height: ctx.sp(6)),
+        // FIX: x-axis labels — clip text so they never overflow bar columns
         Row(children: List.generate(r.histogram.length, (i) => Expanded(
           child: i % 2 == 0
               ? Text(r.histogram[i].lo.toStringAsFixed(0),
                   style: TextStyle(fontSize: ctx.sp(7), color: Colors.grey.shade400),
-                  textAlign: TextAlign.center)
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.clip,
+                  maxLines: 1)
               : const SizedBox.shrink(),
         ))),
         SizedBox(height: ctx.sp(2)),
@@ -1227,19 +1302,21 @@ class _PageState extends State<MonteCarloSimulationPage>
         border: Border.all(color: hColor.withOpacity(0.25)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // FIX: headline row — icon + Flexible text to prevent overflow
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(hIcon, color: hColor, size: ctx.sp(22)),
           SizedBox(width: ctx.sp(8)),
           Expanded(child: Text(headline,
-              style: _label(_fs(ctx, 13.5), color: hColor, w: FontWeight.bold))),
+              style: _label(_fs(ctx, 13), color: hColor, w: FontWeight.bold))),
         ]),
         SizedBox(height: ctx.sp(10)),
         Text(body,
-            style: TextStyle(fontSize: _fs(ctx, 12.5),
+            style: TextStyle(fontSize: _fs(ctx, 12),
                 color: Colors.grey.shade700, height: 1.6)),
         SizedBox(height: ctx.sp(14)),
 
-        Wrap(spacing: ctx.sp(7), runSpacing: ctx.sp(6), children: [
+        // Chips always wrap — no overflow risk
+        Wrap(spacing: ctx.sp(6), runSpacing: ctx.sp(6), children: [
           _chip(ctx,
             '💧 Rain: ${w.meanRainfall.toStringAsFixed(0)} mm ${rFit ? "✓" : "✗"}',
             rFit ? kOlive : kRed, rFit ? kOlive.withOpacity(0.08) : kRed.withOpacity(0.07)),
