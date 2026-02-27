@@ -1,0 +1,1 @@
+create a rupee sybol ion on navbar on taping it take to a page where shows live prices of item https://enam.gov.in/web/dashboard/trade-data scrap from here and display symol name Min Price	Modal Price	Max PricUnit	Date 

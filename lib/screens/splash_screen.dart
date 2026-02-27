@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:cropmate/screens/home.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -75,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               const SizedBox(height: 10),
               const Text(
-                "ecoyield",
+                "Ecoyield",
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:cropmate/screens/disease_detection_page.dart';
 import 'package:cropmate/screens/plant_identification_page.dart';
 import 'package:cropmate/screens/plants_page.dart';
+import 'package:cropmate/screens/livenarketprice.dart';
 // Add this import
 import 'package:cropmate/screens/watering_page.dart';
 
@@ -229,6 +230,7 @@ class _HomePageState extends State<HomePage> {
         items: const [
           Icon(Icons.home_outlined, size: 30, color: Colors.black),
           Icon(Icons.local_florist_outlined, size: 30, color: Colors.black),
+          Icon(Icons.currency_rupee, size: 30, color: Colors.black),
         ],
         onTap: (index) {
           HapticFeedback.mediumImpact(); // Add haptic feedback
@@ -242,8 +244,8 @@ class _HomePageState extends State<HomePage> {
           _showChatbotDialog(context);
         },
         backgroundColor: Colors.green,
-        child: const Icon(Icons.chat, color: Colors.white),
         tooltip: 'Chatbot',
+        child: const Icon(Icons.chat, color: Colors.white),
       ),
     );
   }
@@ -254,9 +256,15 @@ class _HomePageState extends State<HomePage> {
         return _buildHomePage();
       case 1:
         return _buildPlantsPage();
+      case 2:
+        return _buildLivePricePage();
       default:
         return _buildHomePage();
     }
+  }
+
+  Widget _buildLivePricePage() {
+    return const LivePrice();
   }
 
   Widget _buildPlantsPage() {
